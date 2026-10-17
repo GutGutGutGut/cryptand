@@ -6,11 +6,16 @@ fn main() {
     println!("TCDD — Terminal Communication and Data Device");
     println!("Inicializando...");
 
-    if app.running {
+    if app.is_running() {
         println!("Aplicação em execução.");
+
+        if let Some(session) = app.session() {
+            println!("Sessão: {:?}", session.state());
+        }
     }
 
-    app.quit();
-
-    println!("Aplicação encerrada.");
+    match app.quit() {
+        Ok(()) => println!("Aplicação encerrada."),
+        Err(error) => eprintln!("Erro ao encerrar: {error:?}"),
+    }
 }
