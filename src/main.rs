@@ -1,55 +1,38 @@
-use std::io;
-use std::time::Duration;
+use std::{io, time::Duration};
 
 use crossterm::event::{self, Event, KeyCode};
-use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, Paragraph},
-};
+use cryptand::app::{App, Screen};
+use cryptand::ui;
 
 fn main() -> io::Result<()> {
+    let mut app = App::new();
+
     ratatui::run(|terminal| {
-        loop {
-            terminal.draw(|frame| {
-                let areas = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Length(3),
-                        Constraint::Min(1),
-                        Constraint::Length(3),
-                    ])
-                    .split(frame.area());
+        while app.is_running() {
+            terminal.draw(|frame| ui::render(frame, &app))?;
 
-                frame.render_widget(
-                    Paragraph::new("CRYPTAND - Toxin to Government Surveillance ")
-                        .block(Block::default().borders(Borders::ALL).title(" cryptand ")),
-                    areas[0],
-                );
+            if !event::poll(Duration::from_millis(200))? {
+                continue;
+            }
 
-                frame.render_widget(
-                    Paragraph::new(
-                        "Nenhuma conversa aberta.\n\n\
-                         O transporte Tor sera integrado aqui.",
-                    )
-                    .block(Block::default().borders(Borders::ALL).title(" Conversas ")),
-                    areas[1],
-                );
+            let Event::Key(key) = event::read()? else {
+                continue;
+            };
 
-                frame.render_widget(
-                    Paragraph::new("Pressione Q para sair")
-                        .block(Block::default().borders(Borders::ALL)),
-                    areas[2],
-                );
-            })?;
-
-            if event::poll(Duration::from_millis(200))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.code == KeyCode::Char('q') {
-                        break Ok(());
-                    }
+            match key.code {
+                KeyCode::Char('q') if app.screen() == Screen::Home => {
+                    app.quit();
                 }
+                KeyCode::Esc => app.back(),
+                KeyCode::Up => app.handle_up(),
+                KeyCode::Down => app.handle_down(),
+                KeyCode::Enter => app.select(),
+                KeyCode::Backspace => app.backspace(),
+                KeyCode::Char(c) => app.push_char(c),
+                _ => {}
             }
         }
+
+        Ok(())
     })
 }
-// Toxin to Government Surveillance essa é a logo :)

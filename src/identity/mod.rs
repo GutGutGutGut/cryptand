@@ -1,6 +1,5 @@
-
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 
 const SPK_DOMAIN: &[u8] = b"cryptand-SPK-v1";
@@ -33,10 +32,7 @@ fn random_bytes<const N: usize>() -> Result<[u8; N], rand::Error> {
     Ok(bytes)
 }
 
-fn signature_message(
-    identity_dh_key: &[u8; 32],
-    signed_prekey: &[u8; 32],
-) -> Vec<u8> {
+fn signature_message(identity_dh_key: &[u8; 32], signed_prekey: &[u8; 32]) -> Vec<u8> {
     let mut message = Vec::with_capacity(SPK_DOMAIN.len() + 64);
     message.extend_from_slice(SPK_DOMAIN);
     message.extend_from_slice(identity_dh_key);
@@ -64,9 +60,7 @@ impl Identity {
         }
     }
 
-    pub fn generate_signed_prekey(
-        &self,
-    ) -> Result<SignedPreKey, rand::Error> {
+    pub fn generate_signed_prekey(&self) -> Result<SignedPreKey, rand::Error> {
         let secret = StaticSecret::from(random_bytes::<32>()?);
         let public = X25519PublicKey::from(&secret).to_bytes();
 
@@ -97,8 +91,7 @@ impl SignedPreKey {
         let verifying_key = VerifyingKey::from_bytes(&identity.signing_key)
             .map_err(|_| "Chave de assinatura inválida")?;
 
-        let message =
-            signature_message(&identity.identity_dh_key, &prekey.public_key);
+        let message = signature_message(&identity.identity_dh_key, &prekey.public_key);
 
         let signature = Signature::from_bytes(&prekey.signature);
 
@@ -147,7 +140,6 @@ mod tests {
     }
 }
 
-
 use hkdf::Hkdf;
 use sha2::Sha256;
 
@@ -168,10 +160,7 @@ impl OneTimePreKey {
         let secret = StaticSecret::from(random_bytes::<32>()?);
         let public_key = X25519PublicKey::from(&secret).to_bytes();
 
-        Ok(Self {
-            secret,
-            public_key,
-        })
+        Ok(Self { secret, public_key })
     }
 
     pub fn public_key(&self) -> [u8; 32] {
@@ -179,9 +168,7 @@ impl OneTimePreKey {
     }
 }
 
-fn derive_x3dh_key(
-    dh_values: &[[u8; 32]],
-) -> Result<[u8; 32], &'static str> {
+fn derive_x3dh_key(dh_values: &[[u8; 32]]) -> Result<[u8; 32], &'static str> {
     // O perfil X3DH para X25519 usa 32 bytes 0xFF como prefixo.
     let mut input = Vec::with_capacity(32 + dh_values.len() * 32);
     input.extend_from_slice(&[0xFF; 32]);
@@ -204,10 +191,7 @@ fn derive_x3dh_key(
     Ok(output)
 }
 
-fn checked_dh(
-    secret: &StaticSecret,
-    public_bytes: &[u8; 32],
-) -> Result<[u8; 32], &'static str> {
+fn checked_dh(secret: &StaticSecret, public_bytes: &[u8; 32]) -> Result<[u8; 32], &'static str> {
     let public = X25519PublicKey::from(*public_bytes);
     let shared = secret.diffie_hellman(&public);
 
@@ -228,29 +212,18 @@ impl X3dhInitiator {
         SignedPreKey::verify(responder_identity, responder_spk)?;
 
         let ephemeral_secret =
-            StaticSecret::from(random_bytes::<32>()
-                .map_err(|_| "Falha ao gerar chave efêmera")?);
+            StaticSecret::from(random_bytes::<32>().map_err(|_| "Falha ao gerar chave efêmera")?);
 
-        let ephemeral_public =
-            X25519PublicKey::from(&ephemeral_secret).to_bytes();
+        let ephemeral_public = X25519PublicKey::from(&ephemeral_secret).to_bytes();
 
         // DH1 = DH(IK_A, SPK_B)
-        let dh1 = checked_dh(
-            &identity.dh_secret,
-            &responder_spk.public_key,
-        )?;
+        let dh1 = checked_dh(&identity.dh_secret, &responder_spk.public_key)?;
 
         // DH2 = DH(EK_A, IK_B)
-        let dh2 = checked_dh(
-            &ephemeral_secret,
-            &responder_identity.identity_dh_key,
-        )?;
+        let dh2 = checked_dh(&ephemeral_secret, &responder_identity.identity_dh_key)?;
 
         // DH3 = DH(EK_A, SPK_B)
-        let dh3 = checked_dh(
-            &ephemeral_secret,
-            &responder_spk.public_key,
-        )?;
+        let dh3 = checked_dh(&ephemeral_secret, &responder_spk.public_key)?;
 
         let mut values = vec![dh1, dh2, dh3];
 
@@ -271,38 +244,26 @@ impl X3dhInitiator {
 
 impl Identity {
     pub fn complete_x3dh(
-    &self,
-    initiator_identity: &PublicIdentity,
-    initiator_ephemeral: &[u8; 32],
-    responder_spk: &SignedPreKey,
-    responder_opk: Option<&OneTimePreKey>,
-) -> Result<[u8; 32], &'static str> {
+        &self,
+        initiator_identity: &PublicIdentity,
+        initiator_ephemeral: &[u8; 32],
+        responder_spk: &SignedPreKey,
+        responder_opk: Option<&OneTimePreKey>,
+    ) -> Result<[u8; 32], &'static str> {
         // DH1 = DH(SPK_B, IK_A)
-        let dh1 = checked_dh(
-            &responder_spk.secret,
-            &initiator_identity.identity_dh_key,
-        )?;
+        let dh1 = checked_dh(&responder_spk.secret, &initiator_identity.identity_dh_key)?;
 
         // DH2 = DH(IK_B, EK_A)
-        let dh2 = checked_dh(
-            &self.dh_secret,
-            initiator_ephemeral,
-        )?;
+        let dh2 = checked_dh(&self.dh_secret, initiator_ephemeral)?;
 
         // DH3 = DH(SPK_B, EK_A)
-        let dh3 = checked_dh(
-            &responder_spk.secret,
-            initiator_ephemeral,
-        )?;
+        let dh3 = checked_dh(&responder_spk.secret, initiator_ephemeral)?;
 
         let mut values = vec![dh1, dh2, dh3];
 
         // DH4 = DH(OPK_B, EK_A), se houver one-time prekey.
         if let Some(opk) = responder_opk {
-            values.push(checked_dh(
-                &opk.secret,
-                initiator_ephemeral,
-            )?);
+            values.push(checked_dh(&opk.secret, initiator_ephemeral)?);
         }
 
         derive_x3dh_key(&values)
@@ -325,13 +286,8 @@ mod x3dh_tests {
         let alice_public = alice.public_identity();
 
         // Alice inicia o X3DH usando as chaves públicas de bob.
-        let (initiator, alice_key) = X3dhInitiator::start(
-            &alice,
-            &bob_public,
-            bob_spk.public(),
-            None,
-        )
-        .unwrap();
+        let (initiator, alice_key) =
+            X3dhInitiator::start(&alice, &bob_public, bob_spk.public(), None).unwrap();
 
         // bob calcula o segredo correspondente.
         let bob_key = bob
@@ -346,65 +302,53 @@ mod x3dh_tests {
         assert_eq!(alice_key, bob_key);
     }
 
+    #[test]
+    fn modified_ephemeral_key_produces_different_shared_key() {
+        let bob = Identity::generate().unwrap();
+        let bob_spk = bob.generate_signed_prekey().unwrap();
 
-#[test]
-fn modified_ephemeral_key_produces_different_shared_key() {
-    let bob = Identity::generate().unwrap();
-    let bob_spk = bob.generate_signed_prekey().unwrap();
+        let alice = Identity::generate().unwrap();
 
-    let alice = Identity::generate().unwrap();
+        let (initiator, alice_key) =
+            X3dhInitiator::start(&alice, &bob.public_identity(), bob_spk.public(), None).unwrap();
 
-    let (initiator, alice_key) = X3dhInitiator::start(
-        &alice,
-        &bob.public_identity(),
-        bob_spk.public(),
-        None,
-    )
-    .unwrap();
+        // Copia a chave pública efêmera original da Alice.
+        let mut modified_ephemeral = initiator.ephemeral_public_key();
 
-    // Copia a chave pública efêmera original da Alice.
-    let mut modified_ephemeral = initiator.ephemeral_public_key();
+        // Altera um byte para simular uma chave pública modificada.
+        modified_ephemeral[0] ^= 0x01;
 
-    // Altera um byte para simular uma chave pública modificada.
-    modified_ephemeral[0] ^= 0x01;
+        // bob deriva a chave usando a versão modificada.
+        let bob_key = bob
+            .complete_x3dh(
+                &alice.public_identity(),
+                &modified_ephemeral,
+                &bob_spk,
+                None,
+            )
+            .unwrap();
 
-    // bob deriva a chave usando a versão modificada.
-    let bob_key = bob
-        .complete_x3dh(
-            &alice.public_identity(),
-            &modified_ephemeral,
-            &bob_spk,
-            None,
-        )
-        .unwrap();
-
-    // As chaves derivadas devem ser diferentes.
-    assert_ne!(alice_key, bob_key);
-}
-
+        // As chaves derivadas devem ser diferentes.
+        assert_ne!(alice_key, bob_key);
+    }
 
     #[test]
-fn x3dh_rejects_modified_signed_prekey() {
-    let bob = Identity::generate().unwrap();
-    let bob_public = bob.public_identity();
-    let bob_spk = bob.generate_signed_prekey().unwrap();
+    fn x3dh_rejects_modified_signed_prekey() {
+        let bob = Identity::generate().unwrap();
+        let bob_public = bob.public_identity();
+        let bob_spk = bob.generate_signed_prekey().unwrap();
 
-    let alice = Identity::generate().unwrap();
+        let alice = Identity::generate().unwrap();
 
-    // Copia a prekey pública e altera um byte.
-    let mut modified_spk = bob_spk.public().clone();
-    modified_spk.public_key[0] ^= 1;
+        // Copia a prekey pública e altera um byte.
+        let mut modified_spk = bob_spk.public().clone();
+        modified_spk.public_key[0] ^= 1;
 
-    // Alice deve rejeitar a assinatura inválida.
-    let result = X3dhInitiator::start(
-        &alice,
-        &bob_public,
-        &modified_spk,
-        None,
-    );
+        // Alice deve rejeitar a assinatura inválida.
+        let result = X3dhInitiator::start(&alice, &bob_public, &modified_spk, None);
 
-    assert!(result.is_err());
-}
+        assert!(result.is_err());
+    }
 
     #[test]
     fn x3dh_produces_same_key_with_opk() {

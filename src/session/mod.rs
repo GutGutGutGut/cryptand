@@ -1,3 +1,5 @@
+use crate::crypto::{AeadCipher, CryptoError, EncryptedMessage};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum SessionState {
     Active,
@@ -7,17 +9,22 @@ pub enum SessionState {
 #[derive(Debug, PartialEq, Eq)]
 pub enum SessionError {
     AlreadyClosed,
+    Crypto(CryptoError),
 }
 
 pub struct Session {
     state: SessionState,
+    cipher: AeadCipher,
 }
 
 impl Session {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(key: &[u8]) -> Result<Self, SessionError> {
+        let cipher = AeadCipher::new(key).map_err(SessionError::Crypto)?;
+
+        Ok(Self {
             state: SessionState::Active,
-        }
+            cipher,
+        })
     }
 
     pub fn state(&self) -> &SessionState {
@@ -40,21 +47,40 @@ impl Session {
             SessionState::Closed => Err(SessionError::AlreadyClosed),
         }
     }
-}
 
-impl Default for Session {
-    fn default() -> Self {
-        Self::new()
+    pub fn encrypt(&self, plaintext: &[u8], aad: &[u8]) -> Result<EncryptedMessage, SessionError> {
+        self.ensure_active()?;
+
+        self.cipher
+            .encrypt(plaintext, aad)
+            .map_err(SessionError::Crypto)
+    }
+
+    pub fn decrypt(
+        &self,
+        encrypted: &EncryptedMessage,
+        aad: &[u8],
+    ) -> Result<Vec<u8>, SessionError> {
+        self.ensure_active()?;
+
+        self.cipher
+            .decrypt(encrypted, aad)
+            .map_err(SessionError::Crypto)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::KEY_LEN;
+
+    fn test_session() -> Session {
+        Session::new(&[7u8; KEY_LEN]).unwrap()
+    }
 
     #[test]
     fn session_starts_active() {
-        let session = Session::new();
+        let session = test_session();
 
         assert_eq!(session.state(), &SessionState::Active);
         assert!(session.ensure_active().is_ok());
@@ -62,7 +88,7 @@ mod tests {
 
     #[test]
     fn session_can_be_closed() {
-        let mut session = Session::new();
+        let mut session = test_session();
 
         assert!(session.close().is_ok());
         assert_eq!(session.state(), &SessionState::Closed);
@@ -70,7 +96,7 @@ mod tests {
 
     #[test]
     fn closing_twice_returns_error() {
-        let mut session = Session::new();
+        let mut session = test_session();
 
         assert!(session.close().is_ok());
         assert_eq!(session.close(), Err(SessionError::AlreadyClosed));
@@ -78,10 +104,50 @@ mod tests {
 
     #[test]
     fn closed_session_cannot_be_used() {
-        let mut session = Session::new();
+        let mut session = test_session();
 
         session.close().unwrap();
 
         assert_eq!(session.ensure_active(), Err(SessionError::AlreadyClosed));
+    }
+
+    #[test]
+    fn session_encrypts_and_decrypts() {
+        let session = test_session();
+
+        let encrypted = session.encrypt(b"hello", b"header").unwrap();
+        let decrypted = session.decrypt(&encrypted, b"header").unwrap();
+
+        assert_eq!(decrypted, b"hello");
+    }
+
+    #[test]
+    fn closed_session_cannot_encrypt_or_decrypt() {
+        let mut session = test_session();
+        let encrypted = session.encrypt(b"hello", b"header").unwrap();
+
+        session.close().unwrap();
+
+        assert_eq!(
+            session.encrypt(b"again", b"header"),
+            Err(SessionError::AlreadyClosed)
+        );
+        assert_eq!(
+            session.decrypt(&encrypted, b"header"),
+            Err(SessionError::AlreadyClosed)
+        );
+    }
+
+    #[test]
+    fn session_rejects_modified_ciphertext() {
+        let session = test_session();
+        let mut encrypted = session.encrypt(b"hello", b"header").unwrap();
+
+        encrypted.ciphertext[0] ^= 1;
+
+        assert_eq!(
+            session.decrypt(&encrypted, b"header"),
+            Err(SessionError::Crypto(CryptoError::AuthenticationFailed))
+        );
     }
 }
