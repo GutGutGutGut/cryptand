@@ -1,12 +1,21 @@
-# CRYPTAND
-
 <p align="center">
-  <img src="assets/cryptand-222.png" alt="Three-dimensional molecular model of [2.2.2]cryptand" width="320">
+  <img src="assets/cryptand-222.png" width="350">
 </p>
+
+<h1 align="center">Cryptand</h1>
 
 <p align="center">
   <strong>Privacy-oriented communication over Tor, built in Rust.</strong>
 </p>
+
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg">
+  </a>
+  <img src="https://img.shields.io/github/last-commit/GutGutGutGut/GyroJett-Oneshot">
+  <img src="https://img.shields.io/github/stars/GutGutGutGut/GyroJett-Oneshot">
+</p>
+
 
 CRYPTAND is an experimental Rust project exploring privacy-preserving communication, cryptographic key agreement, and Tor-based transport.
 
@@ -42,9 +51,7 @@ The complete end-to-end messaging flow is not yet implemented or security-audite
 Install a compatible Rust toolchain, then run:
 
 ```bash
-cargo check
-cargo test
-cargo run
+cargo build
 ```
 
 ## Security
