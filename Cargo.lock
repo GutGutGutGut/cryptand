@@ -286,6 +286,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cryptand"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "crossterm",
+ "ed25519-dalek",
+ "hkdf",
+ "rand",
+ "ratatui",
+ "sha2 0.11.1",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1628,20 +1642,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "cryptand"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "crossterm",
- "ed25519-dalek",
- "hkdf",
- "rand",
- "ratatui",
- "sha2 0.11.1",
- "x25519-dalek",
 ]
 
 [[package]]
