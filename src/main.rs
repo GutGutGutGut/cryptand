@@ -1,21 +1,55 @@
-use tcdd::app::App;
+use std::io;
+use std::time::Duration;
 
-fn main() {
-    let mut app = App::new();
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::{
+    layout::{Constraint, Direction, Layout},
+    widgets::{Block, Borders, Paragraph},
+};
 
-    println!("TCDD — Terminal Communication and Data Device");
-    println!("Inicializando...");
+fn main() -> io::Result<()> {
+    ratatui::run(|terminal| {
+        loop {
+            terminal.draw(|frame| {
+                let areas = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(3),
+                        Constraint::Min(1),
+                        Constraint::Length(3),
+                    ])
+                    .split(frame.area());
 
-    if app.is_running() {
-        println!("Aplicação em execução.");
+                frame.render_widget(
+                    Paragraph::new("TCDD - Toxin to Government Surveillance ")
+                        .block(Block::default().borders(Borders::ALL).title(" TCDD ")),
+                    areas[0],
+                );
 
-        if let Some(session) = app.session() {
-            println!("Sessão: {:?}", session.state());
+                frame.render_widget(
+                    Paragraph::new(
+                        "Nenhuma conversa aberta.\n\n\
+                         O transporte Tor sera integrado aqui.",
+                    )
+                    .block(Block::default().borders(Borders::ALL).title(" Conversas ")),
+                    areas[1],
+                );
+
+                frame.render_widget(
+                    Paragraph::new("Pressione Q para sair")
+                        .block(Block::default().borders(Borders::ALL)),
+                    areas[2],
+                );
+            })?;
+
+            if event::poll(Duration::from_millis(200))? {
+                if let Event::Key(key) = event::read()? {
+                    if key.code == KeyCode::Char('q') {
+                        break Ok(());
+                    }
+                }
+            }
         }
-    }
-
-    match app.quit() {
-        Ok(()) => println!("Aplicação encerrada."),
-        Err(error) => eprintln!("Erro ao encerrar: {error:?}"),
-    }
+    })
 }
+// Toxin to Government Surveillance essa é a logo :)

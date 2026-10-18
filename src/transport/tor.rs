@@ -1,4 +1,3 @@
-
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
@@ -17,8 +16,7 @@ impl TorTransport {
     }
 
     pub fn connect_proxy(&self) -> io::Result<TcpStream> {
-        let stream =
-            TcpStream::connect_timeout(&self.proxy_addr, self.timeout)?;
+        let stream = TcpStream::connect_timeout(&self.proxy_addr, self.timeout)?;
 
         stream.set_read_timeout(Some(self.timeout))?;
         stream.set_write_timeout(Some(self.timeout))?;
@@ -27,16 +25,16 @@ impl TorTransport {
     }
 
     pub fn connect_onion(&self, host: &str, port: u16) -> io::Result<TcpStream> {
-       if !host.ends_with(".onion")
-    || host.len() > 255
-    || host.len() <= ".onion".len()
-    || host.contains('\0')
-      {
-    return Err(io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "Endereço onion inválido",
-    ));
-      }
+        if !host.ends_with(".onion")
+            || host.len() > 255
+            || host.len() <= ".onion".len()
+            || host.contains('\0')
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Endereço onion inválido",
+            ));
+        }
 
         let mut stream = self.connect_proxy()?;
 
@@ -100,3 +98,68 @@ impl TorTransport {
     }
 }
 // C com memory safe é top!
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+
+    #[test]
+    fn connects_to_local_proxy() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (_stream, _) = listener.accept().unwrap();
+        });
+
+        let transport = TorTransport::new(addr);
+        assert!(transport.connect_proxy().is_ok());
+
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn negotiates_socks5_and_requests_domain() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+
+            // Receber a saudação SOCKS5.
+            let mut greeting = [0u8; 3];
+            stream.read_exact(&mut greeting).unwrap();
+            assert_eq!(greeting, [0x05, 0x01, 0x00]);
+
+            // Aceitar SOCKS5 sem autenticação.
+            stream.write_all(&[0x05, 0x00]).unwrap();
+
+            // Receber o cabeçalho do pedido CONNECT.
+            let mut header = [0u8; 5];
+            stream.read_exact(&mut header).unwrap();
+
+            assert_eq!(header, [0x05, 0x01, 0x00, 0x03, 18]);
+
+            // O destino de teste possui 16 bytes.
+            let mut host_and_port = [0u8; 20];
+            stream.read_exact(&mut host_and_port).unwrap();
+
+            assert_eq!(&host_and_port[..18], b"abcdefghijkl.onion");
+            assert_eq!(&host_and_port[18..], &[0x01, 0xBB]);
+
+            // Resposta CONNECT bem-sucedida, endereço IPv4.
+            stream
+                .write_all(&[0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x10, 0x10])
+                .unwrap();
+        });
+
+        let transport = TorTransport::new(addr);
+        let result = transport.connect_onion("abcdefghijkl.onion", 443);
+
+        assert!(result.is_ok());
+        server.join().unwrap();
+    }
+}
