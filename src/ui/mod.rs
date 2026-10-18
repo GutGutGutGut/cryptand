@@ -86,8 +86,8 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
             render_message(
                 frame,
                 areas[1],
-                "Hospedar sessao temporaria",
-                "O listener TCP e a publicacao onion serao integrados na proxima etapa.\n\nNenhuma conexao foi aberta ainda.",
+                "Sessao temporaria",
+                &format!("{}\n\nEsc: voltar", app.status()),
             );
         }
 

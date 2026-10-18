@@ -7,12 +7,18 @@ pub enum Screen {
     Chat,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkAction {
+    StartServer,
+}
+
 pub struct App {
     running: bool,
     screen: Screen,
     selected: usize,
     onion_address: String,
     status: String,
+    network_action: Option<NetworkAction>,
 }
 
 impl App {
@@ -23,6 +29,7 @@ impl App {
             selected: 0,
             onion_address: String::new(),
             status: String::from("Pronto"),
+            network_action: None,
         }
     }
 
@@ -65,7 +72,7 @@ impl App {
     pub fn back(&mut self) {
         match self.screen {
             Screen::Home => self.quit(),
-            Screen::EnterOnion | Screen::Hosting | Screen::Connecting | Screen::Chat => {
+            _ => {
                 self.screen = Screen::Home;
                 self.status = String::from("Pronto");
             }
@@ -74,14 +81,14 @@ impl App {
 
     pub fn select(&mut self) {
         match self.screen {
+            Screen::Home if self.selected == 0 => {
+                self.screen = Screen::Hosting;
+                self.status = String::from("Iniciando servidor temporario...");
+                self.network_action = Some(NetworkAction::StartServer);
+            }
             Screen::Home => {
-                if self.selected == 0 {
-                    self.screen = Screen::Hosting;
-                    self.status = String::from("Servidor temporario ainda nao iniciado");
-                } else {
-                    self.screen = Screen::EnterOnion;
-                    self.status = String::from("Informe o endereco onion");
-                }
+                self.screen = Screen::EnterOnion;
+                self.status = String::from("Informe o endereco onion");
             }
             Screen::EnterOnion => {
                 if self.onion_address.ends_with(".onion")
@@ -90,13 +97,21 @@ impl App {
                     && !self.onion_address.contains(' ')
                 {
                     self.screen = Screen::Connecting;
-                    self.status = String::from("Transporte Tor ainda nao conectado");
+                    self.status = String::from("Cliente Tor ainda nao foi iniciado");
                 } else {
                     self.status = String::from("Endereco onion invalido");
                 }
             }
             Screen::Hosting | Screen::Connecting | Screen::Chat => {}
         }
+    }
+
+    pub fn take_network_action(&mut self) -> Option<NetworkAction> {
+        self.network_action.take()
+    }
+
+    pub fn handle_network_event(&mut self, status: String) {
+        self.status = status;
     }
 
     pub fn push_char(&mut self, c: char) {
