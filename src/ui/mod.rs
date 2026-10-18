@@ -83,12 +83,22 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
         }
 
         Screen::Hosting => {
-            render_message(
-                frame,
-                areas[1],
-                "Sessao temporaria",
-                &format!("{}\n\nEsc: voltar", app.status()),
-            );
+            let onion = app.onion_address();
+
+            let mensagem = if onion.is_empty() {
+                format!(
+                    "{}\n\nAguardando endereco onion...\n\nEsc: voltar",
+                    app.status()
+                )
+            } else {
+                format!(
+                    "{}\n\nEndereco onion:\n{}\n\nEsc: voltar",
+                    app.status(),
+                    onion
+                )
+            };
+
+            render_message(frame, areas[1], "Sessao temporaria", &mensagem);
         }
 
         Screen::Connecting => {
