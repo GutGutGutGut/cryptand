@@ -21,8 +21,8 @@ fn main() -> io::Result<()> {
                     .split(frame.area());
 
                 frame.render_widget(
-                    Paragraph::new("TCDD - Toxin to Government Surveillance ")
-                        .block(Block::default().borders(Borders::ALL).title(" TCDD ")),
+                    Paragraph::new("CRYPTAND - Toxin to Government Surveillance ")
+                        .block(Block::default().borders(Borders::ALL).title(" cryptand ")),
                     areas[0],
                 );
 
