@@ -110,6 +110,10 @@ impl App {
         self.network_action.take()
     }
 
+    pub fn set_onion_address(&mut self, address: String) {
+        self.onion_address = address;
+    }
+
     pub fn handle_network_event(&mut self, status: String) {
         self.status = status;
     }
