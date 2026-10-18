@@ -12,8 +12,8 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg">
   </a>
-  <img src="https://img.shields.io/github/last-commit/GutGutGutGut/GyroJett-Oneshot">
-  <img src="https://img.shields.io/github/stars/GutGutGutGut/GyroJett-Oneshot">
+  <img src="https://img.shields.io/github/last-commit/GutGutGutGut/cryptand">
+  <img src="https://img.shields.io/github/stars/GutGutGutGut/cryptand">
 </p>
 
 
