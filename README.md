@@ -1,7 +1,7 @@
 # CRYPTAND
 
 <p align="center">
-  <img src="assets/Cryptand.png" alt="bidimensional molecular model of [2.2.2]cryptand" width="320">
+  <img src="assets/cryptand-222.png" alt="Three-dimensional molecular model of [2.2.2]cryptand" width="320">
 </p>
 
 <p align="center">
